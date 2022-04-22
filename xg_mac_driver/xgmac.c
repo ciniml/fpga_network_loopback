@@ -1,4 +1,5 @@
 #include <linux/module.h>
+#include <linux/device.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
@@ -64,8 +65,10 @@ static void xgmac_enable_interrupts(struct net_local *local)
 	xgmac_writel(reg_data | XGMAC_DMA_DMACR_IOC_IRQEN_MASK, local->base_addr + XGMAC_DMA_S2MM_DMACR_OFFSET);
 }
 
-static void xgmac_disable_interrupts(struct net_local *drvdata)
+static void xgmac_disable_interrupts(struct net_local *local)
 {
+	u32 reg_data;
+
 	reg_data = xgmac_readl(local->base_addr + XGMAC_DMA_MM2S_DMACR_OFFSET);
 	xgmac_writel(reg_data & ~XGMAC_DMA_DMACR_IOC_IRQEN_MASK, local->base_addr + XGMAC_DMA_MM2S_DMACR_OFFSET);
 	reg_data = xgmac_readl(local->base_addr + XGMAC_DMA_S2MM_DMACR_OFFSET);
@@ -86,7 +89,7 @@ static int xgmac_open(struct net_device* dev)
 
 static int xgmac_close(struct net_device* dev)
 {
-	struct net_local* local = netdev_prov(dev);
+	struct net_local* local = netdev_priv(dev);
 
 	netif_stop_queue(dev);
 	xgmac_disable_interrupts(local);
@@ -118,7 +121,7 @@ static int xgmac_probe(struct platform_device* pdev)
 	if( !net_dev )
 		return -ENOMEM;
 	
-	dev_set_data(dev, net_dev)
+	dev_set_drvdata(dev, net_dev);
 	SET_NETDEV_DEV(net_dev, dev);
 
 	local = netdev_priv(net_dev);
@@ -141,7 +144,7 @@ static int xgmac_probe(struct platform_device* pdev)
 	eth_hw_addr_random(net_dev);
 
 	net_dev->netdev_ops = &xgmac_netdev_ops;
-	netdev->flags &= ~IFF_MULTICAST;
+	net_dev->flags &= ~IFF_MULTICAST;
 
 	rc = register_netdev(net_dev);
 	if( rc ) {
@@ -149,9 +152,11 @@ static int xgmac_probe(struct platform_device* pdev)
 		goto error;
 	}
 
-	dev_info(dev, "xg_mac driver at 0x%08lx (%p - %p), irq=%d\n", (unsigned long)ndev->mem_start, local->base_addr, net_dev->irq);
+	dev_info(dev, "xg_mac driver at 0x%08lx (%p - %p), irq=%d\n", (unsigned long)net_dev->mem_start, local->base_addr, net_dev->irq);
 
 	return 0;
+error:
+	return rc;
 }
 
 static xgmac_remove(struct platform_device* pdev)
@@ -166,9 +171,9 @@ static xgmac_remove(struct platform_device* pdev)
 }
 
 static const struct net_device_ops xgmac_netdev_ops = {
-	.ndo_open		= xemaclite_open,
-	.ndo_stop		= xemaclite_close,
-	.ndo_start_xmit	= xemaclite_send,
+	.ndo_open		= xgmac_open,
+	.ndo_stop		= xgmac_close,
+	.ndo_start_xmit	= xgmac_send,
 };
 
 static const struct of_device_id xgmac_of_match[] = {
