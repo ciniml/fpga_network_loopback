@@ -1,0 +1,8 @@
+*.jou
+*.log
+*.str
+!*.tcl
+*.xpr
+*.hw
+*.cache
+.Xil
