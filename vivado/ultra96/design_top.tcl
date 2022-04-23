@@ -126,8 +126,10 @@ if { $bCheckIPs == 1 } {
    set list_check_ips "\ 
 xilinx.com:ip:axi_dma:7.1\
 xilinx.com:ip:axis_data_fifo:2.0\
+xilinx.com:ip:debug_bridge:3.0\
 xilinx.com:ip:proc_sys_reset:5.0\
 xilinx.com:ip:smartconnect:1.0\
+xilinx.com:ip:system_ila:1.1\
 xilinx.com:ip:xlconcat:2.1\
 xilinx.com:ip:zynq_ultra_ps_e:3.3\
 "
@@ -200,6 +202,8 @@ proc create_root_design { parentCell } {
   set axi_dma_network [ create_bd_cell -type ip -vlnv xilinx.com:ip:axi_dma:7.1 axi_dma_network ]
   set_property -dict [ list \
    CONFIG.c_addr_width {32} \
+   CONFIG.c_include_mm2s_dre {1} \
+   CONFIG.c_include_s2mm_dre {1} \
    CONFIG.c_include_sg {0} \
    CONFIG.c_m_axi_mm2s_data_width {128} \
    CONFIG.c_m_axi_s2mm_data_width {128} \
@@ -216,8 +220,20 @@ proc create_root_design { parentCell } {
    CONFIG.FIFO_MODE {2} \
  ] $axis_data_fifo_packet
 
+  # Create instance: debug_bridge_inst, and set properties
+  set debug_bridge_inst [ create_bd_cell -type ip -vlnv xilinx.com:ip:debug_bridge:3.0 debug_bridge_inst ]
+  set_property -dict [ list \
+   CONFIG.C_DEBUG_MODE {2} \
+ ] $debug_bridge_inst
+
   # Create instance: proc_sys_reset_cpu, and set properties
   set proc_sys_reset_cpu [ create_bd_cell -type ip -vlnv xilinx.com:ip:proc_sys_reset:5.0 proc_sys_reset_cpu ]
+
+  # Create instance: smartconnect_lpd_master, and set properties
+  set smartconnect_lpd_master [ create_bd_cell -type ip -vlnv xilinx.com:ip:smartconnect:1.0 smartconnect_lpd_master ]
+  set_property -dict [ list \
+   CONFIG.NUM_SI {1} \
+ ] $smartconnect_lpd_master
 
   # Create instance: smartconnect_master, and set properties
   set smartconnect_master [ create_bd_cell -type ip -vlnv xilinx.com:ip:smartconnect:1.0 smartconnect_master ]
@@ -227,6 +243,61 @@ proc create_root_design { parentCell } {
 
   # Create instance: smartconnect_slave, and set properties
   set smartconnect_slave [ create_bd_cell -type ip -vlnv xilinx.com:ip:smartconnect:1.0 smartconnect_slave ]
+
+  # Create instance: system_ila_axi, and set properties
+  set system_ila_axi [ create_bd_cell -type ip -vlnv xilinx.com:ip:system_ila:1.1 system_ila_axi ]
+  set_property -dict [ list \
+   CONFIG.C_DATA_DEPTH {2048} \
+   CONFIG.C_INPUT_PIPE_STAGES {2} \
+   CONFIG.C_MON_TYPE {MIX} \
+   CONFIG.C_NUM_MONITOR_SLOTS {5} \
+   CONFIG.C_NUM_OF_PROBES {1} \
+   CONFIG.C_PROBE0_TYPE {0} \
+   CONFIG.C_SLOT_0_APC_EN {0} \
+   CONFIG.C_SLOT_0_AXI_AR_SEL_DATA {1} \
+   CONFIG.C_SLOT_0_AXI_AR_SEL_TRIG {1} \
+   CONFIG.C_SLOT_0_AXI_AW_SEL_DATA {0} \
+   CONFIG.C_SLOT_0_AXI_AW_SEL_TRIG {0} \
+   CONFIG.C_SLOT_0_AXI_B_SEL_DATA {0} \
+   CONFIG.C_SLOT_0_AXI_B_SEL_TRIG {0} \
+   CONFIG.C_SLOT_0_AXI_R_SEL_DATA {1} \
+   CONFIG.C_SLOT_0_AXI_R_SEL_TRIG {1} \
+   CONFIG.C_SLOT_0_AXI_W_SEL_DATA {0} \
+   CONFIG.C_SLOT_0_AXI_W_SEL_TRIG {0} \
+   CONFIG.C_SLOT_0_INTF_TYPE {xilinx.com:interface:aximm_rtl:1.0} \
+   CONFIG.C_SLOT_1_APC_EN {0} \
+   CONFIG.C_SLOT_1_AXI_AR_SEL_DATA {0} \
+   CONFIG.C_SLOT_1_AXI_AR_SEL_TRIG {0} \
+   CONFIG.C_SLOT_1_AXI_AW_SEL_DATA {1} \
+   CONFIG.C_SLOT_1_AXI_AW_SEL_TRIG {1} \
+   CONFIG.C_SLOT_1_AXI_B_SEL_DATA {1} \
+   CONFIG.C_SLOT_1_AXI_B_SEL_TRIG {1} \
+   CONFIG.C_SLOT_1_AXI_R_SEL_DATA {0} \
+   CONFIG.C_SLOT_1_AXI_R_SEL_TRIG {0} \
+   CONFIG.C_SLOT_1_AXI_W_SEL_DATA {1} \
+   CONFIG.C_SLOT_1_AXI_W_SEL_TRIG {1} \
+   CONFIG.C_SLOT_1_INTF_TYPE {xilinx.com:interface:aximm_rtl:1.0} \
+   CONFIG.C_SLOT_2_APC_EN {0} \
+   CONFIG.C_SLOT_2_AXI_DATA_SEL {1} \
+   CONFIG.C_SLOT_2_AXI_TRIG_SEL {1} \
+   CONFIG.C_SLOT_2_INTF_TYPE {xilinx.com:interface:axis_rtl:1.0} \
+   CONFIG.C_SLOT_3_APC_EN {0} \
+   CONFIG.C_SLOT_3_AXI_DATA_SEL {1} \
+   CONFIG.C_SLOT_3_AXI_TRIG_SEL {1} \
+   CONFIG.C_SLOT_3_INTF_TYPE {xilinx.com:interface:axis_rtl:1.0} \
+   CONFIG.C_SLOT_4_APC_EN {0} \
+   CONFIG.C_SLOT_4_AXI_AR_SEL_DATA {1} \
+   CONFIG.C_SLOT_4_AXI_AR_SEL_TRIG {1} \
+   CONFIG.C_SLOT_4_AXI_AW_SEL_DATA {1} \
+   CONFIG.C_SLOT_4_AXI_AW_SEL_TRIG {1} \
+   CONFIG.C_SLOT_4_AXI_B_SEL_DATA {1} \
+   CONFIG.C_SLOT_4_AXI_B_SEL_TRIG {1} \
+   CONFIG.C_SLOT_4_AXI_R_SEL_DATA {1} \
+   CONFIG.C_SLOT_4_AXI_R_SEL_TRIG {1} \
+   CONFIG.C_SLOT_4_AXI_W_SEL_DATA {1} \
+   CONFIG.C_SLOT_4_AXI_W_SEL_TRIG {1} \
+   CONFIG.C_SLOT_4_INTF_TYPE {xilinx.com:interface:aximm_rtl:1.0} \
+ ] $system_ila_axi
 
   # Create instance: xlconcat_0, and set properties
   set xlconcat_0 [ create_bd_cell -type ip -vlnv xilinx.com:ip:xlconcat:2.1 xlconcat_0 ]
@@ -955,31 +1026,45 @@ Port;FD4A0000;FD4AFFFF;1|FPD;DPDMA;FD4C0000;FD4CFFFF;1|FPD;DDR_XMPU5_CFG;FD05000
    CONFIG.PSU__USE__IRQ0 {1} \
    CONFIG.PSU__USE__M_AXI_GP0 {1} \
    CONFIG.PSU__USE__M_AXI_GP1 {0} \
-   CONFIG.PSU__USE__M_AXI_GP2 {0} \
+   CONFIG.PSU__USE__M_AXI_GP2 {1} \
    CONFIG.PSU__USE__S_AXI_GP0 {1} \
  ] $zynq_ultra_ps_e_0
 
   # Create interface connections
   connect_bd_intf_net -intf_net axi_dma_network_M_AXIS_MM2S [get_bd_intf_pins axi_dma_network/M_AXIS_MM2S] [get_bd_intf_pins axis_data_fifo_packet/S_AXIS]
+connect_bd_intf_net -intf_net [get_bd_intf_nets axi_dma_network_M_AXIS_MM2S] [get_bd_intf_pins axi_dma_network/M_AXIS_MM2S] [get_bd_intf_pins system_ila_axi/SLOT_2_AXIS]
+  set_property HDL_ATTRIBUTE.DEBUG {true} [get_bd_intf_nets axi_dma_network_M_AXIS_MM2S]
   connect_bd_intf_net -intf_net axi_dma_network_M_AXI_MM2S [get_bd_intf_pins axi_dma_network/M_AXI_MM2S] [get_bd_intf_pins smartconnect_slave/S00_AXI]
+connect_bd_intf_net -intf_net [get_bd_intf_nets axi_dma_network_M_AXI_MM2S] [get_bd_intf_pins axi_dma_network/M_AXI_MM2S] [get_bd_intf_pins system_ila_axi/SLOT_0_AXI]
+  set_property HDL_ATTRIBUTE.DEBUG {true} [get_bd_intf_nets axi_dma_network_M_AXI_MM2S]
   connect_bd_intf_net -intf_net axi_dma_network_M_AXI_S2MM [get_bd_intf_pins axi_dma_network/M_AXI_S2MM] [get_bd_intf_pins smartconnect_slave/S01_AXI]
+connect_bd_intf_net -intf_net [get_bd_intf_nets axi_dma_network_M_AXI_S2MM] [get_bd_intf_pins axi_dma_network/M_AXI_S2MM] [get_bd_intf_pins system_ila_axi/SLOT_1_AXI]
+  set_property HDL_ATTRIBUTE.DEBUG {true} [get_bd_intf_nets axi_dma_network_M_AXI_S2MM]
   connect_bd_intf_net -intf_net axis_data_fifo_packet_M_AXIS [get_bd_intf_pins axi_dma_network/S_AXIS_S2MM] [get_bd_intf_pins axis_data_fifo_packet/M_AXIS]
+connect_bd_intf_net -intf_net [get_bd_intf_nets axis_data_fifo_packet_M_AXIS] [get_bd_intf_pins axis_data_fifo_packet/M_AXIS] [get_bd_intf_pins system_ila_axi/SLOT_3_AXIS]
+  set_property HDL_ATTRIBUTE.DEBUG {true} [get_bd_intf_nets axis_data_fifo_packet_M_AXIS]
+  connect_bd_intf_net -intf_net smartconnect_lpd_master_M00_AXI [get_bd_intf_pins debug_bridge_inst/S_AXI] [get_bd_intf_pins smartconnect_lpd_master/M00_AXI]
   connect_bd_intf_net -intf_net smartconnect_master_M00_AXI [get_bd_intf_pins axi_dma_network/S_AXI_LITE] [get_bd_intf_pins smartconnect_master/M00_AXI]
+connect_bd_intf_net -intf_net [get_bd_intf_nets smartconnect_master_M00_AXI] [get_bd_intf_pins smartconnect_master/M00_AXI] [get_bd_intf_pins system_ila_axi/SLOT_4_AXI]
+  set_property HDL_ATTRIBUTE.DEBUG {true} [get_bd_intf_nets smartconnect_master_M00_AXI]
   connect_bd_intf_net -intf_net smartconnect_slave_M00_AXI [get_bd_intf_pins smartconnect_slave/M00_AXI] [get_bd_intf_pins zynq_ultra_ps_e_0/S_AXI_HPC0_FPD]
   connect_bd_intf_net -intf_net zynq_ultra_ps_e_0_M_AXI_HPM0_FPD [get_bd_intf_pins smartconnect_master/S00_AXI] [get_bd_intf_pins zynq_ultra_ps_e_0/M_AXI_HPM0_FPD]
+  connect_bd_intf_net -intf_net zynq_ultra_ps_e_0_M_AXI_HPM0_LPD [get_bd_intf_pins smartconnect_lpd_master/S00_AXI] [get_bd_intf_pins zynq_ultra_ps_e_0/M_AXI_HPM0_LPD]
 
   # Create port connections
   connect_bd_net -net axi_dma_network_mm2s_introut [get_bd_pins axi_dma_network/mm2s_introut] [get_bd_pins xlconcat_0/In0]
   connect_bd_net -net axi_dma_network_s2mm_introut [get_bd_pins axi_dma_network/s2mm_introut] [get_bd_pins xlconcat_0/In1]
-  connect_bd_net -net proc_sys_reset_cpu_peripheral_aresetn [get_bd_pins axi_dma_network/axi_resetn] [get_bd_pins axis_data_fifo_packet/s_axis_aresetn] [get_bd_pins proc_sys_reset_cpu/peripheral_aresetn] [get_bd_pins smartconnect_master/aresetn] [get_bd_pins smartconnect_slave/aresetn]
-  connect_bd_net -net xlconcat_0_dout [get_bd_pins xlconcat_0/dout] [get_bd_pins zynq_ultra_ps_e_0/pl_ps_irq0]
-  connect_bd_net -net zynq_ultra_ps_e_0_pl_clk0 [get_bd_pins axi_dma_network/m_axi_mm2s_aclk] [get_bd_pins axi_dma_network/m_axi_s2mm_aclk] [get_bd_pins axi_dma_network/s_axi_lite_aclk] [get_bd_pins axis_data_fifo_packet/s_axis_aclk] [get_bd_pins proc_sys_reset_cpu/slowest_sync_clk] [get_bd_pins smartconnect_master/aclk] [get_bd_pins smartconnect_slave/aclk] [get_bd_pins zynq_ultra_ps_e_0/maxihpm0_fpd_aclk] [get_bd_pins zynq_ultra_ps_e_0/pl_clk0] [get_bd_pins zynq_ultra_ps_e_0/saxihpc0_fpd_aclk]
+  connect_bd_net -net proc_sys_reset_cpu_peripheral_aresetn [get_bd_pins axi_dma_network/axi_resetn] [get_bd_pins axis_data_fifo_packet/s_axis_aresetn] [get_bd_pins debug_bridge_inst/s_axi_aresetn] [get_bd_pins proc_sys_reset_cpu/peripheral_aresetn] [get_bd_pins smartconnect_lpd_master/aresetn] [get_bd_pins smartconnect_master/aresetn] [get_bd_pins smartconnect_slave/aresetn] [get_bd_pins system_ila_axi/resetn]
+  connect_bd_net -net xlconcat_0_dout [get_bd_pins system_ila_axi/probe0] [get_bd_pins xlconcat_0/dout] [get_bd_pins zynq_ultra_ps_e_0/pl_ps_irq0]
+  set_property HDL_ATTRIBUTE.DEBUG {true} [get_bd_nets xlconcat_0_dout]
+  connect_bd_net -net zynq_ultra_ps_e_0_pl_clk0 [get_bd_pins axi_dma_network/m_axi_mm2s_aclk] [get_bd_pins axi_dma_network/m_axi_s2mm_aclk] [get_bd_pins axi_dma_network/s_axi_lite_aclk] [get_bd_pins axis_data_fifo_packet/s_axis_aclk] [get_bd_pins debug_bridge_inst/s_axi_aclk] [get_bd_pins proc_sys_reset_cpu/slowest_sync_clk] [get_bd_pins smartconnect_lpd_master/aclk] [get_bd_pins smartconnect_master/aclk] [get_bd_pins smartconnect_slave/aclk] [get_bd_pins system_ila_axi/clk] [get_bd_pins zynq_ultra_ps_e_0/maxihpm0_fpd_aclk] [get_bd_pins zynq_ultra_ps_e_0/maxihpm0_lpd_aclk] [get_bd_pins zynq_ultra_ps_e_0/pl_clk0] [get_bd_pins zynq_ultra_ps_e_0/saxihpc0_fpd_aclk]
   connect_bd_net -net zynq_ultra_ps_e_0_pl_resetn0 [get_bd_pins proc_sys_reset_cpu/ext_reset_in] [get_bd_pins zynq_ultra_ps_e_0/pl_resetn0]
 
   # Create address segments
   assign_bd_address -offset 0x00000000 -range 0x80000000 -target_address_space [get_bd_addr_spaces axi_dma_network/Data_MM2S] [get_bd_addr_segs zynq_ultra_ps_e_0/SAXIGP0/HPC0_DDR_LOW] -force
   assign_bd_address -offset 0x00000000 -range 0x80000000 -target_address_space [get_bd_addr_spaces axi_dma_network/Data_S2MM] [get_bd_addr_segs zynq_ultra_ps_e_0/SAXIGP0/HPC0_DDR_LOW] -force
   assign_bd_address -offset 0xA0000000 -range 0x00010000 -target_address_space [get_bd_addr_spaces zynq_ultra_ps_e_0/Data] [get_bd_addr_segs axi_dma_network/S_AXI_LITE/Reg] -force
+  assign_bd_address -offset 0x80000000 -range 0x00010000 -target_address_space [get_bd_addr_spaces zynq_ultra_ps_e_0/Data] [get_bd_addr_segs debug_bridge_inst/S_AXI/Reg0] -force
 
   # Exclude Address Segments
   exclude_bd_addr_seg -offset 0xFF000000 -range 0x01000000 -target_address_space [get_bd_addr_spaces axi_dma_network/Data_MM2S] [get_bd_addr_segs zynq_ultra_ps_e_0/SAXIGP0/HPC0_LPS_OCM]
