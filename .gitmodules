@@ -1,3 +1,6 @@
 [submodule "external/XilinxVirtualCable"]
 	path = external/XilinxVirtualCable
 	url = https://github.com/ciniml/XilinxVirtualCable.git
+[submodule "external/device-tree-xlnx"]
+	path = external/device-tree-xlnx
+	url = https://github.com/Xilinx/device-tree-xlnx.git
