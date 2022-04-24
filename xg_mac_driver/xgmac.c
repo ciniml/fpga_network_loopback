@@ -95,13 +95,16 @@ static int xgmac_send_skb(struct net_device* netdev, struct sk_buff* skb)
 	phys_addr_t pa;
 	size_t size;
 
+	dev_info(&netdev->dev, "send_skb netdev=%px, data=%px, len=%lu, tx_skb=%px\n", netdev, skb->data, skb->len, local->tx_skb);
+
 	size = skb->len;
 	if (size > ETH_FRAME_LEN)
 		size = ETH_FRAME_LEN;
 
 	reg_data = xgmac_readl(local->base_addr + XGMAC_DMA_MM2S_DMASR_OFFSET);
-	if( (reg_data & XGMAC_DMA_DMASR_HALTED_MASK) == 0 || local->tx_skb != NULL ) {
+	if( (reg_data & (XGMAC_DMA_DMASR_HALTED_MASK | XGMAC_DMA_DMASR_IDLE_MASK)) == 0 || local->tx_skb != NULL ) {
 		/* TX DMA is busy. */
+		dev_err(&netdev->dev, "TX DMA is busy dmasr=%08lx tx_skb=%px\n", reg_data, local->tx_skb);
 		return -EBUSY;
 	}
 	
@@ -109,20 +112,20 @@ static int xgmac_send_skb(struct net_device* netdev, struct sk_buff* skb)
 	local->tx_skb_pa = dma_map_single(&local->pdev->dev, skb->data, size, DMA_TO_DEVICE);
 	if( !local->tx_skb_pa ) {
 		/* Failed to map the buffer */
-		dev_err(&netdev->dev, "Failed to map skb. addr=%p, len=%u\n", skb->data, size);
+		dev_err(&netdev->dev, "Failed to map skb. addr=%px, len=%u\n", skb->data, size);
 		return -ENOMEM;
 	}
 
+	reg_data = xgmac_readl(local->base_addr + XGMAC_DMA_MM2S_DMACR_OFFSET);
+	xgmac_writel(reg_data | XGMAC_DMA_DMACR_RS_MASK, local->base_addr + XGMAC_DMA_MM2S_DMACR_OFFSET);
 	xgmac_writel(local->tx_skb_pa & 0xffffffff, local->base_addr + XGMAC_DMA_MM2S_SA_OFFSET);
 	xgmac_writel(local->tx_skb_pa >> 32, local->base_addr + XGMAC_DMA_MM2S_SA_MSB_OFFSET);
-	xgmac_writel(size, local->base_addr + XGMAC_DMA_MM2S_LENGTH_OFFSET);
 
 	/* Store current SKB */
 	local->tx_skb = skb;
 
 	/* Start DMA */
-	reg_data = xgmac_readl(local->base_addr + XGMAC_DMA_MM2S_DMACR_OFFSET);
-	xgmac_writel(reg_data | XGMAC_DMA_DMACR_RS_MASK, local->base_addr + XGMAC_DMA_MM2S_DMACR_OFFSET);
+	xgmac_writel(size, local->base_addr + XGMAC_DMA_MM2S_LENGTH_OFFSET);
 
 	return 0;
 }
@@ -131,6 +134,8 @@ static void xgmac_tx_handler(struct net_device* netdev)
 {
 	struct net_local* local = netdev_priv(netdev);
 	struct device* dev = &netdev->dev;
+
+	dev_info(&netdev->dev, "tx_handler netdev=%px, local=%px, tx_skb=%px\n", netdev, local, local->tx_skb);
 
 	if( local->tx_skb ) {
 		/* Release the last tx skb. */
@@ -178,21 +183,21 @@ static int xgmac_setup_rx(struct net_device* netdev)
 	local->rx_skb_pa = dma_map_single(&local->pdev->dev, skb->data, skb->len, DMA_FROM_DEVICE);
 	if( !local->rx_skb_pa ) {
 		/* Failed to map the buffer */
-		dev_err(dev, "Failed to map rx skb. addr=%p, len=%u\n", skb->data, skb->len);
+		dev_err(dev, "Failed to map rx skb. addr=%px, len=%u\n", skb->data, skb->len);
 		dev_kfree_skb_irq(skb);
 		return -ENOMEM;
 	}
-
+	
+	reg_data = xgmac_readl(local->base_addr + XGMAC_DMA_S2MM_DMACR_OFFSET);
+	xgmac_writel(reg_data | XGMAC_DMA_DMACR_RS_MASK, local->base_addr + XGMAC_DMA_S2MM_DMACR_OFFSET);
 	xgmac_writel(local->rx_skb_pa & 0xffffffff, local->base_addr + XGMAC_DMA_S2MM_DA_OFFSET);
 	xgmac_writel(local->rx_skb_pa >> 32, local->base_addr + XGMAC_DMA_S2MM_DA_MSB_OFFSET);
-	xgmac_writel(bytes_to_receive, local->base_addr + XGMAC_DMA_S2MM_LENGTH_OFFSET);
 
 	/* Store current SKB */
 	local->rx_skb = skb;
 
 	/* Start DMA */
-	reg_data = xgmac_readl(local->base_addr + XGMAC_DMA_S2MM_DMACR_OFFSET);
-	xgmac_writel(reg_data | XGMAC_DMA_DMACR_RS_MASK, local->base_addr + XGMAC_DMA_S2MM_DMACR_OFFSET);
+	xgmac_writel(bytes_to_receive, local->base_addr + XGMAC_DMA_S2MM_LENGTH_OFFSET);
 
 	return 0;
 }
@@ -218,6 +223,9 @@ static void xgmac_rx_handler(struct net_device* netdev)
 		netdev->stats.rx_bytes += bytes_received;
 		if( !skb_defer_rx_timestamp(local->rx_skb) )
 			netif_rx(local->rx_skb);
+		
+		dev_info(&netdev->dev, "received %lu bytes\n", bytes_received);
+
 		local->rx_skb = NULL;
 	}
 
@@ -256,7 +264,7 @@ static int xgmac_open(struct net_device* netdev)
 
     xgmac_disable_interrupts(local);
 
-	rc = request_irq(netdev->irq, xgmac_interrupt, 0, netdev->name, dev);
+	rc = request_irq(netdev->irq, xgmac_interrupt, 0, netdev->name, netdev);
 	if (rc) {
 		dev_err(dev, "Could not allocate interrupt %d\n", netdev->irq);
 		return rc;
@@ -265,7 +273,7 @@ static int xgmac_open(struct net_device* netdev)
 	/* Setup RX DMA */
 	if( rc = xgmac_setup_rx(netdev) ) {
 		dev_err(dev, "Failed to setup RX DMA\n");
-		free_irq(netdev->irq, dev);
+		free_irq(netdev->irq, netdev);
 		netdev->irq = 0;
 		return rc;
 	}
@@ -283,7 +291,7 @@ static int xgmac_close(struct net_device* netdev)
 	netif_stop_queue(netdev);
 	xgmac_disable_interrupts(local);
 	if( netdev->irq ) {
-		free_irq(netdev->irq, &netdev->dev);
+		free_irq(netdev->irq, netdev);
 		netdev->irq = 0;
 	}
 
@@ -298,6 +306,8 @@ static netdev_tx_t xgmac_send(struct sk_buff* skb, struct net_device* netdev)
 	unsigned long flags;
 
 	len = skb->len;
+
+	dev_info(&netdev->dev, "xgmac_send netdev=%px, local=%px, skb=%px\n", netdev, local, skb);
 
 	spin_lock_irqsave(&local->tx_lock, flags);
 	if (xgmac_send_skb(netdev, skb) != 0) {
@@ -337,8 +347,13 @@ static int xgmac_probe(struct platform_device* pdev)
 	SET_NETDEV_DEV(netdev, dev);
 
 	local = netdev_priv(netdev);
+	dev_info(dev, "local=%px\n", local);
 	local->netdev = netdev;
 	local->pdev = pdev;
+	local->tx_skb = NULL;
+	local->next_tx_skb = NULL;
+	local->rx_skb = NULL;
+
 	
 	/* Configure DMA */
 	if( !dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64)) ) {
@@ -382,7 +397,7 @@ static int xgmac_probe(struct platform_device* pdev)
 		goto error;
 	}
 
-	dev_info(&netdev->dev, "xg_mac driver at 0x%08lx (%p), irq=%d\n", (unsigned long)netdev->mem_start, local->base_addr, (int)netdev->irq);
+	dev_info(&netdev->dev, "xg_mac driver at 0x%08lx (%px), irq=%d\n", (unsigned long)netdev->mem_start, local->base_addr, (int)netdev->irq);
 
 	return 0;
 error:
