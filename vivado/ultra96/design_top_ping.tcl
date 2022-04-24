@@ -133,11 +133,14 @@ if { $bCheckIPs == 1 } {
    set list_check_ips "\ 
 xilinx.com:ip:axi_dma:7.1\
 xilinx.com:ip:axis_data_fifo:2.0\
+xilinx.com:ip:axis_dwidth_converter:1.1\
 xilinx.com:ip:debug_bridge:3.0\
+fugafuga.org:Network:ethernet_service:1.0\
 xilinx.com:ip:proc_sys_reset:5.0\
 xilinx.com:ip:smartconnect:1.0\
 xilinx.com:ip:system_ila:1.1\
 xilinx.com:ip:xlconcat:2.1\
+xilinx.com:ip:xlconstant:1.1\
 xilinx.com:ip:zynq_ultra_ps_e:3.3\
 "
 
@@ -246,12 +249,31 @@ proc create_root_design { parentCell } {
    CONFIG.c_sg_include_stscntrl_strm {0} \
  ] $axi_dma_network
 
-  # Create instance: axis_data_fifo_packet, and set properties
-  set axis_data_fifo_packet [ create_bd_cell -type ip -vlnv xilinx.com:ip:axis_data_fifo:2.0 axis_data_fifo_packet ]
+  # Create instance: axis_data_fifo_packet_px_rx, and set properties
+  set axis_data_fifo_packet_px_rx [ create_bd_cell -type ip -vlnv xilinx.com:ip:axis_data_fifo:2.0 axis_data_fifo_packet_px_rx ]
   set_property -dict [ list \
    CONFIG.FIFO_DEPTH {256} \
    CONFIG.FIFO_MODE {2} \
- ] $axis_data_fifo_packet
+ ] $axis_data_fifo_packet_px_rx
+
+  # Create instance: axis_data_fifo_packet_px_tx, and set properties
+  set axis_data_fifo_packet_px_tx [ create_bd_cell -type ip -vlnv xilinx.com:ip:axis_data_fifo:2.0 axis_data_fifo_packet_px_tx ]
+  set_property -dict [ list \
+   CONFIG.FIFO_DEPTH {256} \
+   CONFIG.FIFO_MODE {2} \
+ ] $axis_data_fifo_packet_px_tx
+
+  # Create instance: axis_dwidth_converter_ps_rx, and set properties
+  set axis_dwidth_converter_ps_rx [ create_bd_cell -type ip -vlnv xilinx.com:ip:axis_dwidth_converter:1.1 axis_dwidth_converter_ps_rx ]
+  set_property -dict [ list \
+   CONFIG.M_TDATA_NUM_BYTES {16} \
+ ] $axis_dwidth_converter_ps_rx
+
+  # Create instance: axis_dwidth_converter_ps_tx, and set properties
+  set axis_dwidth_converter_ps_tx [ create_bd_cell -type ip -vlnv xilinx.com:ip:axis_dwidth_converter:1.1 axis_dwidth_converter_ps_tx ]
+  set_property -dict [ list \
+   CONFIG.M_TDATA_NUM_BYTES {1} \
+ ] $axis_dwidth_converter_ps_tx
 
   # Create instance: blink_led, and set properties
   set block_name blink
@@ -275,6 +297,9 @@ proc create_root_design { parentCell } {
   set_property -dict [ list \
    CONFIG.C_DEBUG_MODE {3} \
  ] $debug_bridge_inst
+
+  # Create instance: ethernet_service_inst, and set properties
+  set ethernet_service_inst [ create_bd_cell -type ip -vlnv fugafuga.org:Network:ethernet_service:1.0 ethernet_service_inst ]
 
   # Create instance: proc_sys_reset_cpu, and set properties
   set proc_sys_reset_cpu [ create_bd_cell -type ip -vlnv xilinx.com:ip:proc_sys_reset:5.0 proc_sys_reset_cpu ]
@@ -346,6 +371,13 @@ proc create_root_design { parentCell } {
 
   # Create instance: xlconcat_0, and set properties
   set xlconcat_0 [ create_bd_cell -type ip -vlnv xilinx.com:ip:xlconcat:2.1 xlconcat_0 ]
+
+  # Create instance: xlconstant_config, and set properties
+  set xlconstant_config [ create_bd_cell -type ip -vlnv xilinx.com:ip:xlconstant:1.1 xlconstant_config ]
+  set_property -dict [ list \
+   CONFIG.CONST_VAL {0xc0a80402aabbccddeeff} \
+   CONFIG.CONST_WIDTH {80} \
+ ] $xlconstant_config
 
   # Create instance: zynq_ultra_ps_e_0, and set properties
   set zynq_ultra_ps_e_0 [ create_bd_cell -type ip -vlnv xilinx.com:ip:zynq_ultra_ps_e:3.3 zynq_ultra_ps_e_0 ]
@@ -1076,7 +1108,7 @@ Port;FD4A0000;FD4AFFFF;1|FPD;DPDMA;FD4C0000;FD4CFFFF;1|FPD;DDR_XMPU5_CFG;FD05000
  ] $zynq_ultra_ps_e_0
 
   # Create interface connections
-  connect_bd_intf_net -intf_net axi_dma_network_M_AXIS_MM2S [get_bd_intf_pins axi_dma_network/M_AXIS_MM2S] [get_bd_intf_pins axis_data_fifo_packet/S_AXIS]
+  connect_bd_intf_net -intf_net axi_dma_network_M_AXIS_MM2S [get_bd_intf_pins axi_dma_network/M_AXIS_MM2S] [get_bd_intf_pins axis_data_fifo_packet_px_tx/S_AXIS]
 connect_bd_intf_net -intf_net [get_bd_intf_nets axi_dma_network_M_AXIS_MM2S] [get_bd_intf_pins axi_dma_network/M_AXIS_MM2S] [get_bd_intf_pins system_ila_axi/SLOT_2_AXIS]
   set_property HDL_ATTRIBUTE.DEBUG {true} [get_bd_intf_nets axi_dma_network_M_AXIS_MM2S]
   connect_bd_intf_net -intf_net axi_dma_network_M_AXI_MM2S [get_bd_intf_pins axi_dma_network/M_AXI_MM2S] [get_bd_intf_pins smartconnect_slave/S00_AXI]
@@ -1085,9 +1117,13 @@ connect_bd_intf_net -intf_net [get_bd_intf_nets axi_dma_network_M_AXI_MM2S] [get
   connect_bd_intf_net -intf_net axi_dma_network_M_AXI_S2MM [get_bd_intf_pins axi_dma_network/M_AXI_S2MM] [get_bd_intf_pins smartconnect_slave/S01_AXI]
 connect_bd_intf_net -intf_net [get_bd_intf_nets axi_dma_network_M_AXI_S2MM] [get_bd_intf_pins axi_dma_network/M_AXI_S2MM] [get_bd_intf_pins system_ila_axi/SLOT_1_AXI]
   set_property HDL_ATTRIBUTE.DEBUG {true} [get_bd_intf_nets axi_dma_network_M_AXI_S2MM]
-  connect_bd_intf_net -intf_net axis_data_fifo_packet_M_AXIS [get_bd_intf_pins axi_dma_network/S_AXIS_S2MM] [get_bd_intf_pins axis_data_fifo_packet/M_AXIS]
-connect_bd_intf_net -intf_net [get_bd_intf_nets axis_data_fifo_packet_M_AXIS] [get_bd_intf_pins axis_data_fifo_packet/M_AXIS] [get_bd_intf_pins system_ila_axi/SLOT_3_AXIS]
-  set_property HDL_ATTRIBUTE.DEBUG {true} [get_bd_intf_nets axis_data_fifo_packet_M_AXIS]
+  connect_bd_intf_net -intf_net axis_data_fifo_packet_px_rx_M_AXIS [get_bd_intf_pins axi_dma_network/S_AXIS_S2MM] [get_bd_intf_pins axis_data_fifo_packet_px_rx/M_AXIS]
+connect_bd_intf_net -intf_net [get_bd_intf_nets axis_data_fifo_packet_px_rx_M_AXIS] [get_bd_intf_pins axis_data_fifo_packet_px_rx/M_AXIS] [get_bd_intf_pins system_ila_axi/SLOT_3_AXIS]
+  set_property HDL_ATTRIBUTE.DEBUG {true} [get_bd_intf_nets axis_data_fifo_packet_px_rx_M_AXIS]
+  connect_bd_intf_net -intf_net axis_data_fifo_packet_px_tx_M_AXIS [get_bd_intf_pins axis_data_fifo_packet_px_tx/M_AXIS] [get_bd_intf_pins axis_dwidth_converter_ps_tx/S_AXIS]
+  connect_bd_intf_net -intf_net axis_dwidth_converter_ps_rx_M_AXIS [get_bd_intf_pins axis_data_fifo_packet_px_rx/S_AXIS] [get_bd_intf_pins axis_dwidth_converter_ps_rx/M_AXIS]
+  connect_bd_intf_net -intf_net axis_dwidth_converter_ps_tx_M_AXIS [get_bd_intf_pins axis_dwidth_converter_ps_tx/M_AXIS] [get_bd_intf_pins ethernet_service_inst/in_r]
+  connect_bd_intf_net -intf_net ethernet_service_inst_out_r [get_bd_intf_pins axis_dwidth_converter_ps_rx/S_AXIS] [get_bd_intf_pins ethernet_service_inst/out_r]
   connect_bd_intf_net -intf_net smartconnect_master_M00_AXI [get_bd_intf_pins axi_dma_network/S_AXI_LITE] [get_bd_intf_pins smartconnect_master/M00_AXI]
 connect_bd_intf_net -intf_net [get_bd_intf_nets smartconnect_master_M00_AXI] [get_bd_intf_pins smartconnect_master/M00_AXI] [get_bd_intf_pins system_ila_axi/SLOT_4_AXI]
   set_property HDL_ATTRIBUTE.DEBUG {true} [get_bd_intf_nets smartconnect_master_M00_AXI]
@@ -1103,10 +1139,11 @@ connect_bd_intf_net -intf_net [get_bd_intf_nets smartconnect_master_M00_AXI] [ge
   connect_bd_net -net debug_bridge_inst_tap_tck [get_bd_pins debug_bridge_bscan/jtag_tck] [get_bd_pins debug_bridge_inst/tap_tck]
   connect_bd_net -net debug_bridge_inst_tap_tdi [get_bd_pins debug_bridge_bscan/jtag_tdi] [get_bd_pins debug_bridge_inst/tap_tdi]
   connect_bd_net -net debug_bridge_inst_tap_tms [get_bd_pins debug_bridge_bscan/jtag_tms] [get_bd_pins debug_bridge_inst/tap_tms]
-  connect_bd_net -net proc_sys_reset_cpu_peripheral_aresetn [get_bd_pins axi_dma_network/axi_resetn] [get_bd_pins axis_data_fifo_packet/s_axis_aresetn] [get_bd_pins blink_led/resetn] [get_bd_pins debug_bridge_inst/s_axi_aresetn] [get_bd_pins proc_sys_reset_cpu/peripheral_aresetn] [get_bd_pins smartconnect_master/aresetn] [get_bd_pins smartconnect_slave/aresetn] [get_bd_pins system_ila_axi/resetn]
+  connect_bd_net -net proc_sys_reset_cpu_peripheral_aresetn [get_bd_pins axi_dma_network/axi_resetn] [get_bd_pins axis_data_fifo_packet_px_rx/s_axis_aresetn] [get_bd_pins axis_data_fifo_packet_px_tx/s_axis_aresetn] [get_bd_pins axis_dwidth_converter_ps_rx/aresetn] [get_bd_pins axis_dwidth_converter_ps_tx/aresetn] [get_bd_pins blink_led/resetn] [get_bd_pins debug_bridge_inst/s_axi_aresetn] [get_bd_pins ethernet_service_inst/ap_rst_n] [get_bd_pins proc_sys_reset_cpu/peripheral_aresetn] [get_bd_pins smartconnect_master/aresetn] [get_bd_pins smartconnect_slave/aresetn] [get_bd_pins system_ila_axi/resetn]
   connect_bd_net -net xlconcat_0_dout [get_bd_pins system_ila_axi/probe0] [get_bd_pins xlconcat_0/dout] [get_bd_pins zynq_ultra_ps_e_0/pl_ps_irq0]
   set_property HDL_ATTRIBUTE.DEBUG {true} [get_bd_nets xlconcat_0_dout]
-  connect_bd_net -net zynq_ultra_ps_e_0_pl_clk0 [get_bd_pins axi_dma_network/m_axi_mm2s_aclk] [get_bd_pins axi_dma_network/m_axi_s2mm_aclk] [get_bd_pins axi_dma_network/s_axi_lite_aclk] [get_bd_pins axis_data_fifo_packet/s_axis_aclk] [get_bd_pins blink_led/clock] [get_bd_pins debug_bridge_inst/s_axi_aclk] [get_bd_pins proc_sys_reset_cpu/slowest_sync_clk] [get_bd_pins smartconnect_master/aclk] [get_bd_pins smartconnect_slave/aclk] [get_bd_pins system_ila_axi/clk] [get_bd_pins zynq_ultra_ps_e_0/maxihpm0_fpd_aclk] [get_bd_pins zynq_ultra_ps_e_0/pl_clk0] [get_bd_pins zynq_ultra_ps_e_0/saxihpc0_fpd_aclk]
+  connect_bd_net -net xlconstant_config_dout [get_bd_pins ethernet_service_inst/config_r] [get_bd_pins xlconstant_config/dout]
+  connect_bd_net -net zynq_ultra_ps_e_0_pl_clk0 [get_bd_pins axi_dma_network/m_axi_mm2s_aclk] [get_bd_pins axi_dma_network/m_axi_s2mm_aclk] [get_bd_pins axi_dma_network/s_axi_lite_aclk] [get_bd_pins axis_data_fifo_packet_px_rx/s_axis_aclk] [get_bd_pins axis_data_fifo_packet_px_tx/s_axis_aclk] [get_bd_pins axis_dwidth_converter_ps_rx/aclk] [get_bd_pins axis_dwidth_converter_ps_tx/aclk] [get_bd_pins blink_led/clock] [get_bd_pins debug_bridge_inst/s_axi_aclk] [get_bd_pins ethernet_service_inst/ap_clk] [get_bd_pins proc_sys_reset_cpu/slowest_sync_clk] [get_bd_pins smartconnect_master/aclk] [get_bd_pins smartconnect_slave/aclk] [get_bd_pins system_ila_axi/clk] [get_bd_pins zynq_ultra_ps_e_0/maxihpm0_fpd_aclk] [get_bd_pins zynq_ultra_ps_e_0/pl_clk0] [get_bd_pins zynq_ultra_ps_e_0/saxihpc0_fpd_aclk]
   connect_bd_net -net zynq_ultra_ps_e_0_pl_resetn0 [get_bd_pins proc_sys_reset_cpu/ext_reset_in] [get_bd_pins zynq_ultra_ps_e_0/pl_resetn0]
 
   # Create address segments

@@ -13,10 +13,9 @@ set_property BOARD_PART_REPO_PATHS [get_param board.repoPaths] [current_project]
 #set_property PART $part [current_project]
 set_property board_part avnet.com:ultra96v1:part0:1.2 [current_project]
 
-# lappend ip_repo_path_list [file normalize ../aclint]
-# lappend ip_repo_path_list [file normalize ../vexriscv]
-# set_property ip_repo_paths $ip_repo_path_list [get_filesets sources_1]
-# update_ip_catalog
+lappend ip_repo_path_list [file normalize ../../ethernet_service]
+set_property ip_repo_paths $ip_repo_path_list [get_filesets sources_1]
+update_ip_catalog
 
 # add_files ./dna_reader.v -fileset [get_filesets sources_1]
 
