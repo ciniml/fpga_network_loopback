@@ -1,0 +1,38 @@
+/dts-v1/; /plugin/;
+/ {
+        fragment@0 {
+                target-path = "/fpga-full";
+                __overlay__ {
+                        firmware-name = "design_top_wrapper.bit.bin";
+                };
+        };
+        fragment@1 {
+                target-path = "/amba_pl@0";
+                __overlay__ {
+                        #address-cells = <2>;
+                        #size-cells = <2>;
+                        xg_mac: xg_mac@a0000000 {
+                            #dma-cells = <1>;
+                            clock-names = "s_axi_lite_aclk", "m_axi_mm2s_aclk", "m_axi_s2mm_aclk";
+                            clocks = <&zynqmp_clk 0x47>, <&zynqmp_clk 0x47>, <&zynqmp_clk 0x47>;
+                            compatible = "fugafuga,xg_mac";
+                            interrupt-names = "mm2s_introut", "s2mm_introut";
+                            interrupt-parent = <&gic>;
+                            interrupts = <0 89 4 0 90 4>;
+                            reg = <0x0 0xa0000000 0x0 0x10000>;
+                        };
+                        debug_bridge: debug_bridge@a0010000 {
+                            compatible = "generic-uio";
+                            reg = <0x0 0xA0010000 0x0 0x10000>;
+                        };
+                        fclk0 {
+                                compatible    = "ikwzm,fclkcfg-0.10.a";
+                                clocks        = <&zynqmp_clk 0x47>;
+                                insert-rate   = "100000000";
+                                insert-enable = <1>;
+                                remove-rate   = "1000000";
+                                remove-enable = <0>;
+                        };
+                };
+        };
+};

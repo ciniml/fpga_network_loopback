@@ -2,7 +2,7 @@
 
 PROJECT_NAME := fpga_network_loopback
 PROJECT_DIR := project
-BD_NAME := design_top
+BD_NAME ?= design_top_ping
 BITSTREAM := $(PROJECT_DIR)/$(PROJECT_NAME).runs/impl_1/$(BD_NAME)_wrapper.bit
 BITSTREAM_BIN := $(BD_NAME)_wrapper.bit.bin
 VIVADO ?= vivado
@@ -23,7 +23,7 @@ clean:
 open: $(PROJECT_DIR)/$(PROJECT_NAME).xpr
 	$(VIVADO) $<&
 
-$(PROJECT_DIR)/$(PROJECT_NAME).xpr:
+$(PROJECT_DIR)/$(PROJECT_NAME).xpr: ../../ethernet_service/ip/ethernet_service.zip
 	$(VIVADO) -mode batch -source restore_project.tcl -tclargs $(PROJECT_NAME)
 
 $(BITSTREAM): $(PROJECT_DIR)/$(PROJECT_NAME).xpr $(SRCS) $(PROJECT_DIR)/$(PROJECT_NAME).srcs/sources_1/bd/$(BD_NAME)/$(BD_NAME).bd
