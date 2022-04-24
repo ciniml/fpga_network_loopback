@@ -1,0 +1,5 @@
+config BR2_PACKAGE_XGMAC
+    bool "xgmac kernel_module"
+    depends on BR2_LINUX_KERNEL
+    help
+        xg_mac Linux Kernel Module
